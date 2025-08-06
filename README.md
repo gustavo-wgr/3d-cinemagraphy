@@ -52,6 +52,25 @@ python demo.py -c configs/config.yaml --input_dir demo/0/ --ckpt_path ckpts/mode
 
 Results will be saved to the `input_dir/output`.
 
+### Exporting point clouds
+Pass `--export_pointclouds` to `demo.py` to also save a PLY point cloud for each rendered frame:
+
+```shell
+python demo.py -c configs/config.yaml --input_dir demo/0/ --ckpt_path ckpts/model_150000.pth --flow_scale 1.0 --ds_factor 1.0 --export_pointclouds
+```
+
+Point clouds are written to `input_dir/output/pointclouds/<trajectory>/` with one file per frame. The sequence can be inspected in a 3D viewer:
+
+- **Open3D**
+  ```python
+  import glob, open3d as o3d
+  files = sorted(glob.glob('output/pointclouds/up-down/*.ply'))
+  pcds = [o3d.io.read_point_cloud(f) for f in files]
+  o3d.visualization.draw_geometries([pcds[0]])  # iterate over pcds to animate
+  ```
+- **Three.js**
+  Use [`PLYLoader`](https://threejs.org/docs/#examples/en/loaders/PLYLoader) to load each file and update the mesh each frame, enabling scrubbing or playback in the browser.
+
 ## Known issues
 - Due to the limited size of the training dataset, the intermediate frame may occasionally experience flickering. 
 - The utilization of a fixed distance threshold in agglomerative clustering within the disparity space can occasionally result in the presence of visible boundaries between different layers.
