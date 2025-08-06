@@ -18,6 +18,7 @@ from lib.model.motion.sync_batchnorm import convert_model
 from lib.renderer import ImgRenderer
 from lib.model.inpaint.inpainter import Inpainter
 from lib.utils.data_utils import resize_img
+from lib.utils.io_utils import save_point_cloud
 from third_party.DPT.run_monodepth import run_dpt
 
 
@@ -191,6 +192,9 @@ def render(args):
             start_index = torch.tensor([0]).to(device)
             end_index = torch.tensor([num_frames[j] - 1]).to(device)
             frames = []
+            if args.export_pointclouds:
+                pc_out_dir = os.path.join(video_out_folder, 'pointclouds', video_paths[j])
+                os.makedirs(pc_out_dir, exist_ok=True)
             for middle_index, t_step in tqdm(enumerate(time_steps), total=len(time_steps), ncols=150,
                                              desc='generating video of {} camera trajectory'.format(video_paths[j])):
                 middle_index = torch.tensor([middle_index]).to(device)
@@ -220,6 +224,11 @@ def render(args):
                 all_side_ids = torch.zeros_like(all_masks.squeeze(), dtype=torch.long)
                 num_pts_2 = sum([len(x) for x in all_pts_b])
                 all_side_ids[-num_pts_2:] = 1
+
+                if args.export_pointclouds:
+                    save_point_cloud(os.path.join(pc_out_dir, f'{t_step:05d}.ply'),
+                                     all_pts_flowed.cpu().numpy(),
+                                     all_rgbas_flowed[:, :3].cpu().numpy())
 
                 pred_img, _, meta = renderer.render_pcd(all_pts_flowed,
                                                         all_rgbas_flowed,
@@ -254,6 +263,8 @@ if __name__ == '__main__':
     parser.add_argument('--local_rank', type=int, default=0, help='rank for distributed training')
 
     parser.add_argument('--save_frames', action='store_true', help='if save frames')
+    parser.add_argument('--export_pointclouds', action='store_true',
+                        help='export per-frame point clouds')
     parser.add_argument('--correct_inpaint_depth', action='store_true',
                         help='use this option to correct the depth of inpainting area to prevent occlusion')
     parser.add_argument("--flow_scale", type=float, default=1.0,
